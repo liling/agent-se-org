@@ -1,71 +1,107 @@
-# Multi-Agent 软件工程组织演进源
+# Agent Software Engineering Organization
 
-三角色协作机制（Architect / Investigator / Programmer）的单一内容源，
-通过构建脚本生成各 harness（Agent 运行平台）的部署镜像。
+`agent-se-org` 是软件工程 Multi-Agent 协作机制的单一内容源。
 
-当前支持 OpenCode，包含：
+它不试图自己实现完整的软件工程方法库，而是负责定义：
 
-- 全局协作规范；
-- Architect / Investigator / Programmer 三角色模型；
-- arch-director 架构方法论；
-- 文档工件与模板；
-- Task Contract；
-- Iteration Protocol；
-- Review Gate；
-- UI 工作流；
-- harness 适配与部署镜像。
+- **Organization Rules**：所有角色共同遵守的组织规则；
+- **Agent Roles**：Architect / Investigator / Programmer 的职责、权限和边界；
+- **Orchestration**：Architect 如何选择角色、建立 Task Contract、组合专业 Skills 并做最终决策；
+- **Harness Adaptation**：把同一套组织模型适配到 OpenCode、Codex 等 Agent 运行平台。
 
-本仓库的目标不是维护若干独立 Prompt，而是逐步形成一个可移植的软件工程 Agent Organization Source of Truth。
+专业的软件工程方法优先复用 **gstack** 等 Skill 包，例如 investigation、plan review、code review、QA、security、ship，而不是在本仓库重复维护一套方法论。
 
-## 组织模型
+## 核心模型
 
 ```text
                          User
                            │
                            ▼
-                  Architect / Primary
-                  （Primary Role）
-                    /            \
-                   /              \
-                  ▼                ▼
-          Investigator          Programmer
-          调查 / 诊断           实现 / 修改
-          验证 / 取证           测试 / 修复
-                   \              /
-                    \            /
-                     ▼          ▼
-                    Review Gate
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-        PASS      NEEDS_CHANGES       BLOCKED
-          │              │              │
-          ▼              └──返工────────┘
-        DONE
+                 Architect / Primary
+                 (arch-director Skill)
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+       Investigator     Programmer     gstack Skills
+       查清 / 验证      实现 / 修复     专业工程能力
+             │             │             │
+             └─────────────┴─────────────┘
+                           │
+                           ▼
+                    Architect Review
 ```
 
-Architect 当前不是独立 subagent：Primary Agent 通过全局规范与 `arch-director` Skill 承担 Architect / Technical Lead 职责；Investigator 和 Programmer 是 specialized worker roles。
+基本分工：
 
-## 内容分层模型
+```text
+Architect 负责判断与编排
+Investigator 负责查清与独立验证
+Programmer 负责正式实现与修复
+gstack 提供专业工程方法与工具化 Skill
+```
+
+Architect 是 Primary Role，不作为普通 worker subagent 使用。
+
+## 为什么使用 gstack
+
+角色定义主要回答 **WHO**：谁负责什么、谁有什么决策权、谁不能做什么。
+
+gstack 主要回答 **HOW**：调查 Bug、做工程计划审查、代码 Review、UI QA、安全检查、发布 gate 时采用什么专业方法。
+
+典型组合：
+
+| 工作 | 默认承担者 | 可组合的 gstack Skill |
+|---|---|---|
+| 架构与技术决策 | Architect | `plan-eng-review`, `autoplan` |
+| Root Cause 调查 | Investigator | `investigate` |
+| 代码实现 | Programmer | 实现过程中可用 `investigate` |
+| 代码工程审查 | Programmer / Investigator / Architect | `review` |
+| UI 边验收边修复 | Programmer | `qa` |
+| UI 独立验收 | Investigator | `qa-only` |
+| 视觉检查 | Investigator / Programmer | `design-review` |
+| 安全专项 | 按 Architect 委派 | `cso` |
+| 发布前 gate | Architect 编排 | `ship` |
+| 上线后检查 | 按发布流程 | `canary` |
+| 独立模型意见 | Architect 按需 | gstack 当前版本提供的 `codex` / `claude-code` 等 Skill |
+
+Skill 名称以实际安装的 gstack 版本为准。`agent-se-org` 不 vendor / fork gstack。
+
+## Task Contract
+
+Agent 间的任务委派使用轻量 Task Contract，而不是引入新的 workflow runtime。
+
+核心字段：
+
+```text
+Goal
+Context
+Scope
+Non-goals
+Constraints / Invariants
+Required Evidence
+Acceptance Criteria
+```
+
+模板位于：
+
+```text
+shared/skills/arch-director/templates/task-contract.md
+```
+
+Task Contract 是 Architect 发给 worker 的**消息契约**，不是独立 Agent，也不是 Skill 类型。
+
+## 内容分层
 
 | 层 | 目录 | 权威内容 | 跨 harness |
-|----|------|----------|:---:|
-| 组织规范 | `shared/AGENTS.md` | 全局原则、权责边界、通用工程纪律 | ✓ |
-| 协作协议 | `shared/protocols/` | Task Contract、状态流转、证据要求、Review Gate | ✓ |
-| 方法论 | `shared/skills/` | Architect 方法论、模板与可复用 Skill | ✓ |
-| Agent 定义 | `agents/` | 角色正文（职责、边界、行为、返回格式），无 frontmatter | ✓ |
-| harness 适配 | `harness/<name>/` | mode / model / tools / 委派描述等平台格式 | ✗ |
-| 构建产物 | `dist/<name>/` | 完整部署镜像，git track，供审阅与部署 | 生成 |
+|---|---|---|:---:|
+| Organization Rules | `shared/AGENTS.md` | 全局协作规范与工程底线 | ✓ |
+| Orchestrator Skill | `shared/skills/arch-director/` | Architect 的编排、决策、Task Contract 与模板 | ✓ |
+| Agent Roles | `agents/` | Investigator / Programmer 角色正文，无 frontmatter | ✓ |
+| Harness Adapter | `harness/<name>/` | mode / model / tools / 平台格式 | ✗ |
+| Deployment Image | `dist/<name>/` | 构建生成的完整部署镜像 | generated |
 
-规则归属原则：
-
-- 所有任务都必须遵守的原则 → `shared/AGENTS.md`；
-- 多角色协作如何运行 → `shared/protocols/`；
-- Architect 方法论和模板 → `shared/skills/`；
-- 某个角色如何行动 → `agents/`；
-- 某个平台如何表达角色与工具 → `harness/`。
-
-一条规则只有一个权威出处。不要在多个层复制同一规则。
+一条规则只保留一个权威出处。
 
 ## 目录结构
 
@@ -76,17 +112,19 @@ agent-se-org/
 
   shared/
     AGENTS.md
-
-    protocols/
-      README.md
-      task-contract.md
-      iteration-protocol.md
-      review-gate.md
-
     skills/
       arch-director/
         SKILL.md
         templates/
+          architecture.md
+          module.md
+          roadmap.md
+          iteration.md
+          ADR.md
+          decisions-INDEX.md
+          report.md
+          runbook.md
+          task-contract.md
 
   agents/
     investigator.md
@@ -101,157 +139,86 @@ agent-se-org/
   dist/
     opencode/
       AGENTS.md
-      protocols/
       agents/
       skills/
 ```
 
-## Task Contract
-
-复杂任务不应只通过一段模糊自然语言委派。
-
-`shared/protocols/task-contract.md` 定义标准协作接口：
-
-```text
-Goal
-Context
-Constraints
-Allowed / Forbidden Scope
-Required Evidence
-Expected Artifact
-Completion Criteria
-Escalation Conditions
-```
-
-简单、局部、低风险任务可以压缩为：
-
-```text
-Goal
-Scope
-Constraints
-Evidence
-Done When
-```
-
-关键不是格式，而是减少隐藏上下文、静默扩大 scope 和“Agent 认为自己做完了”的问题。
-
-## Iteration Protocol
-
-默认状态流：
-
-```text
-INTAKE
-  ↓
-INVESTIGATING
-  ↓
-DECIDED
-  ↓
-IMPLEMENTING
-  ↓
-VERIFYING
-  ↓
-REVIEW
-  ├── PASS → DONE
-  ├── NEEDS_CHANGES → IMPLEMENTING / INVESTIGATING
-  └── BLOCKED → WAITING_DECISION
-```
-
-这目前是组织协议，不是工作流引擎。简单任务可以压缩阶段；复杂或高风险任务应显式执行完整 Contract、Verification 和 Review Gate。
-
-## Review Gate
-
-Architect 最终只给出三种 Verdict：
-
-- `PASS`
-- `NEEDS_CHANGES`
-- `BLOCKED`
-
-PASS 必须基于 Goal、Contract、实际 diff 和验证证据，不能只根据 Programmer 的总结。
-
-推荐证据优先级：
-
-```text
-实际运行结果 / test output / diff / screenshot / log
-    >
-代码阅读得到的直接证据
-    >
-项目文档
-    >
-Agent 推断
-    >
-无证据的自我声明
-```
-
-## 构建与部署
+## OpenCode 构建与部署
 
 ```bash
 ./build.sh
-
 git diff dist/
 
-# 部署前建议备份
+# 部署前建议先备份
 cp -r ~/.config/opencode ~/.config/opencode.bak
 cp -R dist/opencode/ ~/.config/opencode/
 ```
 
-`build.sh` 当前会把以下共享内容放入 OpenCode 部署镜像：
+构建只生成 OpenCode 真正认识的组织内容：
 
-- `AGENTS.md`
-- `skills/`
-- `protocols/`
-- 合成后的 `agents/*.md`
+```text
+AGENTS.md
+agents/
+skills/
+```
 
-> 已实验确认 OpenCode 会将全局 AGENTS.md 注入 subagent 上下文，因此 Agent 正文尽量引用共享规则，而不是重复复制。
+不会生成自定义 `protocols/` runtime 类型。
 
-## v2 第一阶段边界
+### gstack
 
-本阶段只建立稳定、跨 harness 的组织协议层，不引入新的 Runtime Primitive。
+gstack 需要按其官方方式单独安装到当前 harness。
 
-明确不做：
+`agent-se-org` 只约定如何使用这些 Skills，不复制 gstack 源码，也不锁死具体版本。
 
-- 任务数据库；
-- 工作流引擎；
-- Agent queue；
-- 自动调度；
-- 并发控制；
-- 自动审批；
-- 自动 retry；
-- 新增大量角色。
+部署后应确认当前环境实际可见的 gstack Skill 名称；若某个 Skill 不存在，Agent 必须退回基础能力，而不能假装调用成功。
 
-真实项目运行一段时间后，再决定哪些协议值得机器化。
+## 默认协作路径
 
-## 部署后需验证
+```text
+User Goal
+  ↓
+Architect 恢复项目状态
+  ↓
+事实不清？ ──→ Investigator (+ gstack investigate / browse)
+  ↓
+Architect 做设计 / 技术决策
+  ↓
+复杂计划？ ──→ gstack plan-eng-review / autoplan
+  ↓
+Architect 建立 Task Contract
+  ↓
+Programmer 实现、自验证
+  ↓
+按风险选择 review / qa / qa-only / cso / second opinion
+  ↓
+Architect 最终 Review
+  ↓
+PASS / NEEDS CHANGES / BLOCKED
+```
 
-- [ ] 运行 `./build.sh`，确认 `dist/opencode/protocols/` 与 `shared/protocols/` 一致；
-- [ ] Investigator 浏览器工具的实际 MCP key 验证并启用；
-- [ ] 用真实小项目完整走一次：
-      Intake → Investigation → Decision → Contract → Implementation → Verification → Review；
-- [ ] 验证 `NEEDS_CHANGES` 能正确返回实现或调查阶段，而不是直接结束；
-- [ ] 验证 Review Verdict 能落盘并在下一次会话恢复；
-- [ ] 迭代结束后只回写长期有价值的信息到 roadmap / ADR / architecture docs。
+这不是强制的固定工作流。简单任务应压缩流程；高风险、跨模块或事实不清的任务应增加调查和独立验证。
 
-## 增加 harness 平台（Codex / Pi 等）
+## 设计原则
 
-1. 调研平台的 Agent 定义格式与部署路径，在 `harness/<name>/` 建适配层；
-2. `build.sh` 增加对应构建函数；
-3. `shared/` 与 `agents/` 的语义内容直接复用；
-4. 若平台无法表达某机制，在 harness adapter 中使用平台原生机制替代；
-5. 不得为了适配单个平台去污染 shared 层语义。
+1. **Organization 与 Methodology 分离**：本仓库定义组织，gstack 等 Skill 包提供专业方法。
+2. **Role 与 Skill 分离**：Agent 是职责主体；Skill 是可组合能力。
+3. **Architect 持有最终技术决策权**：worker 可以挑战设计，但不能静默改变架构。
+4. **Investigator 与 Programmer 分工**：调查/独立验证与正式实现尽量分离。
+5. **证据驱动**：Programmer 的“已完成”不是最终 Verdict。
+6. **不重复维护方法论**：gstack 已有能力不再复制进 Agent prompt。
+7. **Harness-neutral source**：平台差异留在 `harness/`，共享角色和方法保持单源。
+8. **先稳定组织协议，再自动化执行**：当前不引入 task database、scheduler、queue 或 workflow engine。
 
-## 已知平台差异
+## 后续方向
 
-- OpenCode：Skill 目录可携带 templates；支持 subagent frontmatter；
-- Codex：具体 Skill / agent 分发与工具权限映射仍需单独设计并验证。
+### Codex adapter
 
-## 后续候选方向
+增加 `harness/codex/`，将相同的 Organization Rules、Agent Roles 和 arch-director 映射到 Codex 的实际 instructions / agents / skills 机制。
 
-只有在真实迭代证明有价值后再考虑：
+### gstack capability discovery
 
-- 将 Task Contract 结构化为机器可读 schema；
-- iteration state 持久化；
-- workflow runner；
-- 自动 Review loop；
-- Architect → Investigator → Programmer → Review 的自动调度；
-- stable section anchors，替代对 AGENTS.md 章节编号的脆弱引用；
-- Codex harness adapter；
-- Agent 配置静态校验器。
+部署验证中确认 OpenCode / Codex 下实际安装的 gstack Skill 名称和调用方式，避免依赖过时名称。
+
+### 自动化编排
+
+只有在真实项目反复运行证明有必要后，再考虑把 Task Contract、状态和 Review loop 映射为机器可执行 workflow。不要提前创建新的 runtime primitive。
