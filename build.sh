@@ -4,7 +4,6 @@
 # 源:
 #   shared/AGENTS.md            跨 harness 全局规范（直接取用）
 #   shared/skills/              跨 harness 方法论 + 模板（直接取用）
-#   shared/protocols/           跨 harness 协作协议（直接取用）
 #   agents/<name>.md            agents 统一定义正文（无 frontmatter）
 #   harness/<h>/frontmatter/<name>.md   per-harness frontmatter 适配片段
 #
@@ -20,7 +19,6 @@ build_opencode() {
 
   cp shared/AGENTS.md "$out/AGENTS.md"
   cp -r shared/skills "$out/skills"
-  cp -r shared/protocols "$out/protocols"
 
   for fm in harness/opencode/frontmatter/*.md; do
     local name
