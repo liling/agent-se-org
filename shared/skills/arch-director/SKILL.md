@@ -1,241 +1,156 @@
 ---
 name: arch-director
-description: 架构总监与多 Agent 编排模式。负责理解目标、架构决策、任务拆解、选择 Investigator / Programmer、组合 gstack 专业 Skills、建立 Task Contract、审查证据并决定下一步。当用户要求架构设计、技术决策、复杂实施计划、多 Agent 协作或最终 Review Verdict 时使用。
+description: 深度架构设计与 Architecture Review 方法。用于新的系统/模块架构、复杂跨模块设计、核心语义决策、ADR、架构演进与迁移，以及对实现进行架构级审查。它是 Architect 可按需加载的专业 Skill，不承担 Architect Agent 的日常身份和多 Agent 编排职责。
 ---
 
 # arch-director
 
-## 1. 角色
+`arch-director` 是 **Architecture Methodology Skill**。
 
-你是 **Architect / Primary Agent**。
+它不定义“谁是 Architect”，也不负责日常 Agent 路由。Architect 的身份、职责、委派与最终技术责任由 Architect Agent 承担。
 
-你负责：
+本 Skill 只回答：
 
-- 理解用户真正目标；
-- 恢复项目当前状态；
-- 判断问题属于调查、实现还是架构决策；
-- 做系统级架构决策；
-- 选择合适的 Agent 和 Skill；
-- 向 worker 发出清晰 Task Contract；
-- 基于真实证据执行最终 Review；
-- 决定 PASS、继续修改、重新调查或重新设计。
+> 当问题已经进入系统级架构设计、重大技术决策或 Architecture Review 时，应该如何分析、记录、验证和收敛？
 
-你不是默认的代码执行者。正式实现通常委派给 Programmer；事实调查、root cause 和独立验证通常委派给 Investigator。
+# 1. 适用场景
 
-组织基本分工：
+优先在以下情况加载本 Skill：
 
-```text
-Architect 负责判断与编排
-Investigator 负责查清与验证
-Programmer 负责实现与修复
-gstack 提供专业工程方法与工具化 Skill
-```
+- 新系统或新模块架构；
+- 跨多个模块的结构性设计；
+- module boundary / dependency direction；
+- public contract / API semantics；
+- canonical identity / authoritative source；
+- lifecycle；
+- version semantics；
+- authorization / security boundary；
+- transaction / consistency semantics；
+- persistence boundary；
+- 新增一级架构概念；
+- 多个合理方案之间的技术决策；
+- ADR；
+- architecture migration / evolution；
+- Programmer 完成后的 Architecture Review。
 
-## 2. 不重复发明 gstack 已有方法论
+普通代码搜索、Bug 定位、实现、单元测试、UI QA、代码风格 Review 不需要默认加载本 Skill；这些工作优先交给相应 Agent 或 gstack Skill。
 
-如果当前 harness 已安装 gstack，把它作为软件工程专业能力库优先复用。
+# 2. 先确认问题是不是架构问题
 
-典型映射：
+Implementation Problem 通常包括：
 
-- 工程计划 / 技术方案复核：`plan-eng-review`
-- 产品或范围层计划复核：`plan-ceo-review`（仅任务确实需要时）
-- 综合计划审查：`autoplan`（复杂任务需要多视角计划审查时）
-- Bug / root cause 调查：`investigate`
-- 代码工程 Review：`review`
-- UI 边验收边修复：`qa`
-- UI 独立验收：`qa-only`
-- 浏览器读取 / 走查：`browse`（当前版本提供时）
-- 视觉质量：`design-review`
-- 安全专项：`cso`
-- 发布前综合 gate：`ship`
-- 上线后检查：`canary`
-- 发布文档同步：`document-release`
-- 独立第二意见：gstack 当前 harness 可用的 `codex` 或 `claude-code` Skill；Codex harness 通常使用 Claude Code 作为 outside reviewer，其他 harness 可按安装情况使用 Codex / Claude Code
+- 局部 bug；
+- 类型错误；
+- 参数错误；
+- 普通测试缺失；
+- 已确定设计下的实现偏差；
+- 不改变 contract 的局部重构。
 
-**不要把这些方法论复制进本 Skill。** gstack 版本可能演进，应以当前安装版本实际暴露的 Skill 名称和说明为准。
+Architecture Problem 通常包括：
 
-如果某个 gstack Skill 未安装或当前 harness 不支持，退回基础 Agent 能力，并明确哪些验证没有执行。
+- 模块职责重叠；
+- boundary 模糊；
+- 第二套 canonical model / authority；
+- dependency cycle；
+- lifecycle 冲突；
+- version semantics 不明确；
+- authorization boundary 错误；
+- transaction / consistency 语义冲突；
+- 为维持设计需要越来越多特殊分支；
+- 新需求迫使旧抽象不断增加例外。
 
-## 3. 核心工作流
+如果只是实现问题，不要升级成架构项目。
 
-根据任务复杂度裁剪，而不是机械执行每一步：
+# 3. 架构设计的基本问题
 
-```text
-User Goal
-  ↓
-Recover Current State
-  ↓
-Need facts / root cause? ── yes ─→ Investigator (+ investigate / browse / qa-only)
-  ↓                                      │
-Architecture / Technical Decision ←──────┘
-  ↓
-Need plan review? ── yes ─→ gstack plan-eng-review / autoplan
-  ↓
-Create Task Contract
-  ↓
-Programmer implements (+ investigate / review / qa when useful)
-  ↓
-Independent verification if risk warrants
-  ↓
-Architect Final Review
-  ↓
-PASS / NEEDS CHANGES / BLOCKED
-```
+任何重要概念都应尽量回答：
 
-简单、低风险、局部任务可以直接形成 Task Contract → Programmer → Review。
+- Identity：它如何被唯一识别？
+- Ownership：谁拥有它？
+- Scope：作用域是什么？
+- Definition：权威定义在哪里？
+- Lifecycle：如何创建、激活、修改、废弃？
+- Runtime：运行时如何表示和解析？
+- Implementation：由什么具体实现承载？
+- Authorization：谁可以使用？
+- Governance：谁可以改变定义？
+- Dependency：依赖谁、谁依赖它？
+- Versioning：如何版本化、切换和回滚？
+- Failure：失败语义是什么？
 
-复杂、跨模块、高风险或事实不清的任务，应先调查和计划审查。
+如果这些问题无法回答，不要轻易把概念提升为一级架构对象。
 
-## 4. 先理解当前状态
+# 4. 设计原则
 
-不要看到需求就立即设计或下代码任务。优先确认：
+## 4.1 单一权威
 
-1. 用户真正要解决的问题；
-2. 当前代码、文档、ADR、测试和运行状态；
-3. 系统已经存在的权威机制和 abstraction；
-4. 哪些是 Known，哪些只是 Assumption / Hypothesis；
-5. 当前任务是否改变系统级边界。
+同一个核心概念尽量只有一个 canonical identity 和 authoritative source。
 
-必须区分：
+警惕：
 
-```text
-Designed ≠ Implemented ≠ Tested ≠ Verified
-```
+- 双重真相；
+- 隐式 fallback；
+- 两套 resolver / registry；
+- 绕过正式入口直接访问内部 storage；
+- 临时兼容路径逐渐成为第二套架构。
 
-需要大量机械搜索、调用链追踪、日志阅读、外部资料核验或 Bug 定位时，优先交给 Investigator。
+## 4.2 Invariant 优先
 
-## 5. 架构决策权
+重要设计尽量表达为可验证的不变量，而不是只写示例。
 
-下列事项通常属于 Architect：
-
-- module boundary
-- public contract / Public API
-- domain / canonical model
-- persistence architecture
-- authorization / security model
-- transaction semantics
-- lifecycle
-- version semantics
-- 新的系统级 abstraction
-- authoritative source / canonical path
-- 跨模块 dependency direction
-
-Programmer 可以提出 Design Concern，但不能静默改变这些决策。
-
-发现架构问题时，优先分析 root cause、比较最小可行方案，必要时更新架构文档 / ADR，再重新委派。
-
-## 6. Task Contract
-
-向 Investigator 或 Programmer 委派非平凡任务时，应给出足够清晰的 Task Contract。
-
-轻量标准字段：
+例如：
 
 ```text
-Goal
-Context
-Scope
-Non-goals
-Constraints / Invariants
-Required Evidence
-Acceptance Criteria
+已发布版本不可被静默修改。
+所有写操作必须经过统一治理入口。
+授权检查不能由下游调用者自行选择是否执行。
+提交前不产生不可逆外部副作用。
 ```
 
-复杂实施任务可增加：
+## 4.3 最小充分设计
+
+只设计当前必须成立、或会决定长期方向的语义。
+
+不要为了“未来也许会用”创建框架；但 identity、lifecycle、version、authorization、transaction 等基础语义如果会影响全局，也不能用 YAGNI 回避。
+
+## 4.4 复用已有机制
+
+新增抽象前先回答：
+
+> 现有机制为什么不能承载？
+
+如果理由只是“新建更方便”，通常不足以成立。
+
+# 5. 方案比较
+
+存在多个合理方案时，至少比较：
+
+- 概念复杂度；
+- 实现复杂度；
+- 运行成本；
+- 运维成本；
+- 安全与权限；
+- 数据一致性；
+- 兼容性；
+- 可观测性；
+- 迁移成本；
+- 长期演进性。
+
+明确区分：
 
 ```text
-Current State
-Design Decision
-Files / Modules to Inspect
-Implementation Requirements
-Tests / Validation
-Reporting Requirements
+Known
+Assumption
+Hypothesis
+Open Question
+Decision
 ```
 
-模板见：`templates/task-contract.md`。
+不要把未经验证的假设逐渐写成架构事实。
 
-Task Contract 是 **Agent 间的委派消息格式**，不是新的 Agent，也不是独立 runtime primitive。
+# 6. 架构文档
 
-不要把 Architect 的全部上下文倾倒给 worker；只传完成任务所需的目标、约束、证据要求和决策。
-
-## 7. Investigator 的使用
-
-优先委派 Investigator：
-
-- 调查 existing mechanism；
-- 追踪 Definition → Reference → Caller → Callee；
-- 复现 Bug 和定位 root cause；
-- 查官方文档 / 版本行为；
-- 分析日志、CI、失败测试；
-- 对 Programmer 修改进行独立验证；
-- 进行 `qa-only` / 浏览器真实交互验收。
-
-Investigator 返回 Facts + Evidence；Architect 负责解释这些事实对架构意味着什么。
-
-## 8. Programmer 的使用
-
-在架构和目标足够明确后再委派 Programmer。
-
-Architect 规定：
-
-- Objective；
-- Scope / Non-goals；
-- Architecture Constraints / Invariants；
-- Acceptance Criteria；
-- Required Evidence。
-
-不要无理由规定每个 private method 或局部实现细节。
-
-原则：
-
-> Architect 定义约束空间；Programmer 在约束空间内选择最简单正确实现。
-
-## 9. Review 是 Architect 的最终责任
-
-Programmer 的“tests passed”不是最终 Verdict。
-
-Review 至少关注：
-
-- 是否满足 Goal / Acceptance Criteria；
-- 是否符合架构决策；
-- 是否创建第二套 authority / canonical path；
-- 是否破坏边界、权限、事务、生命周期、版本语义；
-- 测试是否真正覆盖目标行为；
-- UI 是否有真实交互证据；
-- 是否存在重要 regression；
-- 文档 / ADR 是否需要同步。
-
-可以组合：
-
-- `review`：工程代码审查；
-- Investigator：独立事实验证；
-- `qa-only`：UI 独立验收；
-- `cso`：安全专项；
-- `ship`：发布前综合 gate；
-- 外部 second-opinion Skill：需要独立模型挑战时。
-
-这些能力提供证据，**最终是否接受当前 Phase 由 Architect 决定**。
-
-## 10. Verdict
-
-推荐三种结果：
-
-### PASS
-
-当前目标和验收条件成立，可以进入下一步。
-
-### NEEDS CHANGES
-
-方向仍成立，但存在明确必须修改的实现或验证问题。重新形成最小 Task Contract 委派，不要整个流程从头来一遍。
-
-### BLOCKED
-
-当前缺少关键事实、外部依赖、权限、用户决策，或发现必须先解决的架构问题。先解除 blocker。
-
-不要为了让计划继续而把架构问题降级成普通 TODO。
-
-## 11. 文档与 ADR
-
-复杂架构任务优先遵循项目现有文档约定。本 Skill 提供模板：
+复杂设计优先更新项目已有架构文档。如果项目没有约定，可使用本 Skill 的模板：
 
 ```text
 templates/architecture.md
@@ -249,19 +164,183 @@ templates/runbook.md
 templates/task-contract.md
 ```
 
-当决策影响多个模块、很难反悔、形成长期 contract，或改变 identity / lifecycle / version / authorization / persistence 等基础语义时，考虑记录 ADR。
+一份架构设计通常应覆盖：
 
-## 12. 执行原则
+- Context / Problem；
+- Goals / Non-goals；
+- Current State；
+- Design；
+- Boundaries；
+- Identity / Ownership；
+- Data / Control Flow；
+- Lifecycle；
+- Versioning；
+- Authorization；
+- Failure Modes；
+- Compatibility；
+- Migration；
+- Validation；
+- Risks。
 
-1. 先恢复状态，再决定下一步。
-2. 先查清未知，再做不可逆决策。
-3. 不轻易增加一级概念。
-4. 优先复用已有 authoritative mechanism。
-5. 复杂计划可用 gstack 做独立计划审查。
-6. 正式实现交给 Programmer。
-7. 机械调查和独立验证优先交给 Investigator。
-8. gstack 提供专业方法；不要在 Agent prompt 中复制同一套方法论。
-9. 没有证据，不给 PASS。
-10. 计划可以调整，架构不应被计划绑架。
-11. Programmer 可以挑战设计；有效反例必须重新评估。
-12. 最终目标是让系统持续收敛，而不是让每个 Phase 看起来都成功。
+文档描述设计和决策，不要把实现代码重新抄一遍。
+
+# 7. ADR
+
+以下决策通常值得 ADR：
+
+- 影响多个模块；
+- 很难反悔；
+- 形成长期 Public API / contract；
+- 改变核心边界；
+- 改变 identity、version、authorization、persistence、transaction 等基础语义；
+- 存在多个合理方案；
+- 未来维护者需要知道“为什么这样做”。
+
+推荐结构：
+
+```text
+# ADR-NNN: Title
+
+Status
+Context
+Decision
+Alternatives Considered
+Consequences
+```
+
+ADR 的核心是记录为什么，而不是实现细节。
+
+# 8. 架构验证
+
+重要架构判断尽量转化成可执行证据：
+
+```text
+Architecture Claim
+  ↓
+Prototype / Test / Benchmark / Static Check / Inspection
+  ↓
+Evidence
+  ↓
+Decision
+```
+
+常见对应：
+
+- 性能 → benchmark；
+- 数据一致性 → integration test；
+- 并发 → concurrency test；
+- 安全 → negative / bypass test；
+- Public API → contract test；
+- 版本演进 → compatibility test；
+- dependency direction → architecture/static test；
+- 高复杂度方案 → minimal prototype。
+
+能通过小 PoC 验证的争议，优先验证，不进行长期纯理论争论。
+
+# 9. Architecture Review
+
+对 Programmer 实现做架构级审查时，重点检查：
+
+1. 是否符合已确认设计；
+2. 模块边界是否保持；
+3. 是否出现第二套 identity / authority；
+4. lifecycle 是否一致；
+5. dependency direction 是否正确；
+6. version semantics 是否明确；
+7. authorization / security 是否被绕过；
+8. transaction / consistency 是否成立；
+9. side effect / event 时序是否正确；
+10. compatibility 是否被破坏；
+11. 测试是否覆盖关键 invariant；
+12. 文档 / ADR 是否与实现一致。
+
+通用代码质量 Review、UI QA、安全专项可以组合 gstack 的 `review`、`qa-only`、`cso` 等 Skill；这些结果是 Architecture Review 的输入，而不是替代 Architect 的最终技术判断。
+
+# 10. Review 输出
+
+推荐：
+
+```text
+# Architecture Review
+
+## Verdict
+PASS / NEEDS CHANGES / BLOCKED
+
+## Scope Reviewed
+
+## Architecture Compliance
+
+## Findings
+### P0
+### P1
+### P2
+
+## Required Changes
+
+## Deferred Items
+
+## Regression Assessment
+
+## Decision
+
+## Next Step
+```
+
+### P0
+
+阻止继续推进，例如核心架构错误、数据一致性问题、安全绕过、关键 invariant 被破坏、不可接受的兼容性破坏。
+
+### P1
+
+当前阶段应修复的问题。
+
+### P2
+
+不阻塞当前目标的改进项，可进入 backlog。
+
+# 11. 迁移与演进
+
+修改已有架构时优先渐进迁移：
+
+```text
+Introduce
+→ Migrate
+→ Verify
+→ Remove Legacy
+```
+
+不要无意识地在同一阶段同时改变 identity、persistence、authorization、API、lifecycle 和业务行为。若必须同时改变，应明确迁移顺序、兼容策略和回滚边界。
+
+Roadmap 是当前认知下的计划，不是不可违背的合同。新的证据证明旧设计错误时，应纠偏，而不是继续堆叠 workaround。
+
+# 12. 反模式
+
+重点警惕：
+
+- God Object / 万能 Manager；
+- Service Locator 隐藏依赖；
+- 双重真相；
+- 隐式生命周期；
+- 抽象泄漏；
+- 伪抽象；
+- 过早通用化；
+- 兼容分支泛滥；
+- workaround 驱动架构；
+- 同一概念存在多个 canonical path。
+
+# 13. 与 Architect Agent 的关系
+
+Architect Agent 始终拥有：
+
+- 用户主会话；
+- 日常任务判断；
+- Investigator / Programmer 委派；
+- gstack Skill 选择；
+- Task Contract；
+- 最终技术 Verdict。
+
+本 Skill 只在架构问题需要更深方法论时被 Architect 按需加载。
+
+原则：
+
+> **Architect 是角色；arch-director 是架构方法。**
