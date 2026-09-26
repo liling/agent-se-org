@@ -2,7 +2,7 @@
 # 从单一内容源生成各 harness 的部署镜像。
 #
 # 源:
-#   shared/AGENTS.md            跨 harness 全局规范（直接取用）
+#   shared/AGENTS.md            跨 harness 的极薄 bootstrap
 #   shared/skills/              跨 harness 方法论 + 模板（直接取用）
 #   agents/<name>.md            agents 统一定义正文（无 frontmatter）
 #   harness/<h>/frontmatter/<name>.md   per-harness frontmatter 适配片段
