@@ -63,7 +63,7 @@ gstack 主要回答 **HOW**：调查 Bug、做工程计划审查、代码 Review
 | 安全专项 | 按 Architect 委派 | `cso` |
 | 发布前 gate | Architect 编排 | `ship` |
 | 上线后检查 | 按发布流程 | `canary` |
-| 独立模型意见 | Architect 按需 | gstack 当前版本提供的 `codex` / `claude-code` 等 Skill |
+| 独立模型意见 | Architect 按需 | `codex` / `claude-code`（按当前 harness 可用项） |
 
 Skill 名称以实际安装的 gstack 版本为准。`agent-se-org` 不 vendor / fork gstack。
 
@@ -164,13 +164,28 @@ skills/
 
 不会生成自定义 `protocols/` runtime 类型。
 
-### gstack
+## gstack 安装
 
-gstack 需要按其官方方式单独安装到当前 harness。
+gstack 按其官方方式单独安装，不作为本仓库的构建产物。
 
-`agent-se-org` 只约定如何使用这些 Skills，不复制 gstack 源码，也不锁死具体版本。
+当前官方 setup 支持显式选择 host：
 
-部署后应确认当前环境实际可见的 gstack Skill 名称；若某个 Skill 不存在，Agent 必须退回基础能力，而不能假装调用成功。
+```bash
+git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/gstack
+cd ~/gstack
+
+# OpenCode
+./setup --host opencode
+
+# Codex CLI
+./setup --host codex
+```
+
+OpenCode 的 gstack skills 会安装到 `~/.config/opencode/skills/gstack-*/`；Codex 会安装到 `${CODEX_HOME:-~/.codex}/skills/gstack-*/`。
+
+gstack 支持 prefix / no-prefix 模式，因此运行时可能暴露为 `gstack-investigate`，也可能是 `investigate`。Agent 必须以当前环境实际发现的 Skill 名称为准，不把名称猜测当成已安装事实。
+
+outside review 也按 harness 路由：Codex 环境可使用 gstack 的 Claude Code outside reviewer；其他支持环境可使用 Codex outside reviewer。具体能力以当前 gstack 版本和本机已安装 CLI 为准。
 
 ## 默认协作路径
 
@@ -189,7 +204,7 @@ Architect 建立 Task Contract
   ↓
 Programmer 实现、自验证
   ↓
-按风险选择 review / qa / qa-only / cso / second opinion
+按风险选择 review / qa / qa-only / cso / outside review
   ↓
 Architect 最终 Review
   ↓
