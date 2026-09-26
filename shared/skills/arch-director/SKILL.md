@@ -50,7 +50,7 @@ gstack 提供专业工程方法与工具化 Skill
 - 发布前综合 gate：`ship`
 - 上线后检查：`canary`
 - 发布文档同步：`document-release`
-- 独立第二意见：gstack 当前版本提供的 `codex` / `claude-code` 等 consult/review Skill
+- 独立第二意见：gstack 当前 harness 可用的 `codex` 或 `claude-code` Skill；Codex harness 通常使用 Claude Code 作为 outside reviewer，其他 harness 可按安装情况使用 Codex / Claude Code
 
 **不要把这些方法论复制进本 Skill。** gstack 版本可能演进，应以当前安装版本实际暴露的 Skill 名称和说明为准。
 
