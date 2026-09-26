@@ -65,7 +65,9 @@ gstack 主要回答 **HOW**：调查 Bug、做工程计划审查、代码 Review
 | 上线后检查 | 按发布流程 | `canary` |
 | 独立模型意见 | Architect 按需 | `codex` / `claude-code`（按当前 harness 可用项） |
 
-Skill 名称以实际安装的 gstack 版本为准。`agent-se-org` 不 vendor / fork gstack。
+表中的名字是逻辑 Skill 名。gstack 可能以 prefix 模式暴露为 `gstack-investigate`、`gstack-review` 等，也可能在 no-prefix 模式下暴露为 `investigate`、`review`。运行时必须使用当前环境实际发现的名称。
+
+`agent-se-org` 不 vendor / fork gstack。
 
 ## Task Contract
 
