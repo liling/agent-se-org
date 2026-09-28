@@ -1,4 +1,4 @@
-name: Build Drift Check
+name: Build Check
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-drift:
+  build-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
