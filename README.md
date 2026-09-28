@@ -252,7 +252,7 @@ Design 实施并验证后，再把稳定事实同步到 architecture / ADR。历
 | Bootstrap | `shared/AGENTS.md` | 极薄入口提示 |
 | Agent Roles | `agents/` | Architect / Investigator / Programmer |
 | Shared Skills | `shared/skills/` | 方法与模板 |
-| Harness Adapter | `harness/<name>/` | mode / model / tools / 平台格式 |
+| Harness Adapter | `harness/opencode/`, `harness/codex/` | bootstrap / mode / model / tools / 平台格式 |
 | Deployment Image | `dist/<name>/` | 构建生成的部署镜像 |
 
 ## 目录结构
@@ -279,9 +279,16 @@ agent-se-org/
   harness/
     opencode/
       frontmatter/
+    codex/
+      bootstrap.md
+      frontmatter/
 
   dist/
     opencode/
+      AGENTS.md
+      agents/
+      skills/
+    codex/
       AGENTS.md
       agents/
       skills/
@@ -305,11 +312,57 @@ mode: primary
 
 本仓库不强制覆盖该用户偏好。
 
+## Codex
+
+Codex 没有 `mode: primary`：主会话始终是用户自己的 agent，无法替换。因此 Architect 被定义为一个普通的 Codex agent，需要时唤醒，不占用主 agent。
+
+```text
+User
+  ↓
+Codex 主 agent（保持空闲）
+  ↓ spawn_agent(agent_type="architect")
+Architect
+  ├── investigator
+  └── programmer
+```
+
+Codex adapter 生成：
+
+```text
+dist/codex/
+  AGENTS.md          # 极薄 bootstrap：非平凡软工任务唤醒 architect
+  agents/
+    architect.toml
+    investigator.toml
+    programmer.toml
+  skills/            # 与 shared/skills 一致
+```
+
+agent 正文与 OpenCode 共用 `agents/*.md`；Codex 仅额外提供 TOML 元数据（description / model / reasoning effort）。
+
+| agent | model | reasoning effort |
+|---|---|---|
+| architect | gpt-6-luna | high |
+| investigator | gpt-6-luna | low |
+| programmer | gpt-6-luna | medium |
+
+部署：
+
+```bash
+./build.sh
+cp ~/.codex/AGENTS.md ~/.codex/AGENTS.md.bak   # 备份现有内容
+cp dist/codex/AGENTS.md ~/.codex/AGENTS.md
+cp -R dist/codex/agents/* ~/.codex/agents/
+cp -R dist/codex/skills/* ~/.codex/skills/     # 按目录合并，保留 gstack/.system
+```
+
+注意：`~/.codex/AGENTS.md` 会被薄 bootstrap 替换；`~/.codex/skills/` 只做增量合并，不会删除其他技能。
+
 ## 构建与部署
 
 ```bash
 ./build.sh
-git diff dist/
+find dist -type f | sort
 
 cp -r ~/.config/opencode ~/.config/opencode.bak
 cp -R dist/opencode/ ~/.config/opencode/
@@ -317,14 +370,9 @@ cp -R dist/opencode/ ~/.config/opencode/
 
 `build.sh` 会把 `harness/opencode/frontmatter/<agent>.md` 与 `agents/<agent>.md` 合成为最终 Agent 文件，同时复制 bootstrap 和 shared skills。
 
-CI 会执行 build drift check：
+`dist/` 是构建产物，已被 git 忽略，不提交。
 
-```bash
-./build.sh
-git diff --exit-code -- dist/
-```
-
-因此修改 source 后必须同步生成并提交 `dist/`，避免部署镜像与 source 漂移。
+CI 会执行构建完整性校验：依次运行 `./build.sh`、`./build.sh opencode`、`./build.sh codex`，校验预期产物文件齐备，并用 `tomllib` 验证 `dist/codex/agents/*.toml` 合法且 `developer_instructions` 与 `agents/*.md` 逐字一致。
 
 ## gstack 安装
 
