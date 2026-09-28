@@ -28,10 +28,32 @@ build_opencode() {
   done
 }
 
+build_codex() {
+  local out=dist/codex
+  rm -rf "$out"
+  mkdir -p "$out/agents"
+
+  cp harness/codex/bootstrap.md "$out/AGENTS.md"
+  cp -r shared/skills "$out/skills"
+
+  for fm in harness/codex/frontmatter/*.toml; do
+    local name
+    name="$(basename "$fm" .toml)"
+    [ -f "agents/$name.md" ] || { echo "ERROR: agents/$name.md 不存在" >&2; exit 1; }
+    {
+      cat "$fm"
+      printf '\ndeveloper_instructions = """\n'
+      cat "agents/$name.md"
+      printf '"""\n'
+    } > "$out/agents/$name.toml"
+  done
+}
+
 case "${1:-all}" in
   opencode) build_opencode ;;
-  all)      build_opencode ;;
-  *) echo "用法: $0 [opencode|all]" >&2; exit 1 ;;
+  codex)    build_codex ;;
+  all)      build_opencode; build_codex ;;
+  *) echo "用法: $0 [opencode|codex|all]" >&2; exit 1 ;;
 esac
 
 echo "build 完成:"
