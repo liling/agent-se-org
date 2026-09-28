@@ -1,0 +1,23 @@
+name: Build Drift Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rebuild deployment images
+        run: ./build.sh
+
+      - name: Verify generated dist is committed
+        run: git diff --exit-code -- dist/
