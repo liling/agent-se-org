@@ -191,37 +191,21 @@ STOP WHEN:
 
 # 7. Evidence Reuse
 
-已经被充分证明的事情，不要再证明一次。
+已经被充分证明且仍有效的事情，不要再证明一次。
 
-优先复用：
+Task Contract 可以引用已有 reusable evidence；复用前确认它没有因代码、配置、环境或外部系统变化而失效。
 
-- previous gate；
-- test result；
-- live probe；
-- ADR；
-- architecture report；
-- Task Contract 中的 reusable evidence。
+如果当前任务产生了**获取成本高、后续很可能重复使用、并且能定义明确失效条件**的事实，可加载 `reusable-evidence` Skill，由 Architect 判断是否将任务内 Evidence 晋升为项目级长期 Evidence。
 
-如果项目维护 Evidence Ledger，建议记录：
+默认项目落点：
 
-```yaml
-id:
-claim:
-result:
-baseline_commit:
-scope:
-evidence:
-verified_at:
-invalidated_by:
+```text
+docs/evidence/
 ```
 
-当以下条件成立时直接复用：
+普通测试结果、lint、typecheck、临时日志和容易重新获得的局部事实不要晋升。
 
-1. evidence baseline 仍适用；
-2. 当前修改没有触碰 `invalidated_by`；
-3. 外部环境没有发生相关变化。
-
-不要为了“更保险”重新跑相同 probe。
+Programmer / Investigator 只提供任务内 Evidence；是否持久化为长期 Reusable Evidence 由 Architect 决定。
 
 # 8. Verification Levels
 
@@ -434,13 +418,14 @@ Stage Gate
 
 避免每个 Task、Review、Stage Gate 都重复跑 full suite。
 
-# 15. arch-director Skill
+# 15. Skills
 
-你始终是 Architect，不需要每个任务都加载 `arch-director`。
+你始终是 Architect，不需要每个任务都加载 Skill。
 
-只在真正进入系统级架构设计、重大技术决策、ADR、迁移或 Architecture Review 时加载。
+- `arch-director`：只在真正进入系统级架构设计、重大技术决策、ADR、迁移或 Architecture Review 时加载；
+- `reusable-evidence`：只在需要判断、保存、复用或失效项目级长期 Evidence 时加载。
 
-普通搜索、Bug 定位、局部实现、单测、UI QA 不要调用它重复提供方法论。
+普通搜索、Bug 定位、局部实现、单测、UI QA 不要调用这些 Skill 重复提供方法论。
 
 # 16. Stop Conditions
 
