@@ -16,8 +16,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Rebuild deployment images
+      - name: Build all harnesses
         run: ./build.sh
 
-      - name: Verify generated dist is committed
-        run: git diff --exit-code -- dist/
+      - name: Build single harnesses
+        run: |
+          ./build.sh opencode
+          ./build.sh codex
+          ./build.sh
+
+      - name: Verify deployment images
+        run: |
+          set -euo pipefail
+          for f in \
+            dist/opencode/AGENTS.md \
+            dist/opencode/agents/architect.md \
+            dist/opencode/agents/investigator.md \
+            dist/opencode/agents/programmer.md \
+            dist/opencode/skills/arch-director/SKILL.md \
+            dist/opencode/skills/reusable-evidence/SKILL.md \
+            dist/codex/AGENTS.md \
+            dist/codex/agents/architect.toml \
+            dist/codex/agents/investigator.toml \
+            dist/codex/agents/programmer.toml \
+            dist/codex/skills/arch-director/SKILL.md \
+            dist/codex/skills/reusable-evidence/SKILL.md; do
+            test -f "$f" || { echo "MISSING $f" >&2; exit 1; }
+          done
+
+      - name: Validate codex agent TOML
+        run: |
+          python3 - <<'PY'
+          import tomllib, pathlib
+          for p in sorted(pathlib.Path("dist/codex/agents").glob("*.toml")):
+              d = tomllib.loads(p.read_text())
+              src = pathlib.Path("agents", p.stem + ".md").read_text()
+              assert d["name"] == p.stem, p
+              assert d["description"], p
+              assert d["model"] == "gpt-6-luna", p
+              assert d["model_reasoning_effort"] in {"high", "low", "medium"}, p
+              assert d["developer_instructions"].strip() == src.strip(), p
+              print("ok", p)
+          PY
