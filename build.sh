@@ -8,7 +8,7 @@
 #   harness/<h>/frontmatter/<name>.md   per-harness frontmatter 适配片段
 #
 # 产物:
-#   dist/<h>/                   完整部署镜像（git track，审阅后部署）
+#   dist/<h>/                   完整部署镜像（构建产物，git 忽略）
 set -euo pipefail
 cd "$(dirname "$0")"
 
