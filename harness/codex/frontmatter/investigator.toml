@@ -1,0 +1,15 @@
+name = "investigator"
+
+description = """
+低成本的软件工程调查与诊断 Agent。
+
+当任务主要需要查找信息、阅读代码、追踪调用链、阅读项目文档、
+查询官方技术资料、运行测试、复现问题、分析日志、定位 root cause
+或进行独立验证时，优先使用本 Agent。
+
+本 Agent 以调查、诊断和验证为主，不拥有架构决策权，
+默认不负责正式的生产代码实现。
+"""
+
+model = "gpt-6-luna"
+model_reasoning_effort = "low"
